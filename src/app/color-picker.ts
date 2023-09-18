@@ -612,20 +612,26 @@ class ColorPicker extends HTMLElement {
   attributeChangedCallback(attrName: string) {
     switch (attrName) {
       case 'color': {
+        this.updateValues = true;
         this.state.initialColor = parseColor(this.getAttribute('color'));
         this.state.color = parseColor(this.getAttribute('color'));
         this.onInitialColorChange();
+        this.updateValues = false;
         break;
       }
 
       case 'color-index': {
+        this.updateValues = true;
         this.state.colorIndex = parseInt(this.getAttribute('color-index') || '-1');
+        this.updateValues = false;
         break;
       }
 
       case 'theme-colors': {
+        this.updateValues = true;
         const colorThemeStr = this.getAttribute('theme-colors') || '[]';
         this.state.themeColors = JSON.parse(colorThemeStr);
+        this.updateValues = false;
         break;
       }
 
