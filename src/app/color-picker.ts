@@ -1,7 +1,13 @@
 // @ts-ignore: esbuild custom loader
 import styles from './styles.pcss';
 import ColorPickerPopup from '../ui/popup/popup';
-import { CUSTOM_EVENT_COLOR_HSV_CHANGED, CUSTOM_EVENT_COLOR_HUE_CHANGED, CUSTOM_EVENT_COLOR_ALPHA_CHANGED, CUSTOM_EVENT_BUTTON_CLICKED, sendButtonClickedCustomEvent } from '../domain/events-provider';
+import { CUSTOM_EVENT_COLOR_HSV_CHANGED, 
+  CUSTOM_EVENT_COLOR_HUE_CHANGED, 
+  CUSTOM_EVENT_COLOR_ALPHA_CHANGED, 
+  CUSTOM_EVENT_BUTTON_CLICKED, 
+  CUSTOM_EVENT_COLOR_INDEX_CHANGED,
+  CUSTOM_EVENT_THEME_COLOR_CHANGED,
+  sendButtonClickedCustomEvent } from '../domain/events-provider';
 import { getUniqueId } from '../domain/common-provider';
 import { hslaToString, hsvaToString, parseColor, rgbaToString } from '../domain/color-provider';
 import { TinyColor } from '@ctrl/tinycolor'; // https://github.com/scttcper/tinycolor
@@ -33,6 +39,8 @@ interface IColorPickerState {
   // color
   initialColor: TinyColor;
   color: TinyColor;
+  colorIndex: number;
+  themeColors: Array<string>;
 
   // button
   buttonWidth?: string | null;
@@ -42,7 +50,7 @@ interface IColorPickerState {
 
 class ColorPicker extends HTMLElement {
   static get observedAttributes() {
-    return ['color', 'popup-position', 'button-width', 'button-height', 'button-padding'];
+    return ['color', 'theme-colors', 'color-index', 'popup-position', 'button-width', 'button-height', 'button-padding'];
   }
 
   // ----------- APIs ------------------------
@@ -59,6 +67,22 @@ class ColorPicker extends HTMLElement {
    */
   public get color() {
     return this.state.color;
+  }
+
+  public set colorIndex(index: number) {
+    this.state.colorIndex = index;
+  }
+
+  public get colorIndex() {
+    return this.state.colorIndex;
+  }
+
+  public set themeColors(val: Array<string>) {
+    this.state.themeColors = val;
+  }
+
+  public get themeColors() {
+    return this.state.themeColors;
   }
 
   /**
@@ -139,6 +163,8 @@ class ColorPicker extends HTMLElement {
     popupPosition: 'left',
     initialColor: new TinyColor('#000'),
     color: new TinyColor('#000'),
+    colorIndex: -1,
+    themeColors: [],
     buttonWidth: null,
     buttonHeight: null,
     buttonPadding: null,
@@ -167,6 +193,7 @@ class ColorPicker extends HTMLElement {
     this.hsvChanged = this.hsvChanged.bind(this);
     this.hueChanged = this.hueChanged.bind(this);
     this.alphaChanged = this.alphaChanged.bind(this);
+    this.colorIndexChanged = this.colorIndexChanged.bind(this);
     this.buttonClicked = this.buttonClicked.bind(this);
     this.formatButtonSize = this.formatButtonSize.bind(this);
 
@@ -199,6 +226,14 @@ class ColorPicker extends HTMLElement {
           scope.onColorChange();
         }
 
+        if (key === 'colorIndex') {
+          scope.onColorIndexChange();
+        }
+
+        if (key === 'themeColors') {
+          scope.onThemeColorChange();
+        }
+
         if (key === 'buttonWidth' || key === 'buttonHeight' || key === 'buttonPadding') {
           scope.setButtonSize();
         }
@@ -210,8 +245,11 @@ class ColorPicker extends HTMLElement {
 
   onPopupVisibilityChange() {
     if (!this.$popupBox) return;
+    const colorStr = this.state.color.toRgbString();
+    const themeColorStr = JSON.stringify(this.themeColors);
+    const popupPos = this.state.popupPosition;
     this.$popupBox.innerHTML = this.state.isPopupVisible
-      ? `<toolcool-color-picker-popup color="${this.state.color.toRgbString()}" cid="${this.cid}" popup-position="${this.state.popupPosition}" />`
+      ? `<toolcool-color-picker-popup color='${colorStr}' color-index='${this.colorIndex}' theme-colors='${themeColorStr}' cid='${this.cid}' popup-position='${popupPos}' />`
       : '';
   }
 
@@ -275,6 +313,31 @@ class ColorPicker extends HTMLElement {
     );
   }
 
+  onColorIndexChange() {
+    if (this.state.colorIndex >= 0 && this.state.colorIndex < this.state.themeColors.length || 0) {
+      this.state.color = new TinyColor(this.state.themeColors[this.state.colorIndex]);
+      this.state.initialColor = this.state.color;
+      this.onInitialColorChange();
+    }
+    const $popup = this.shadowRoot?.querySelector('toolcool-color-picker-popup');
+    if ($popup) {
+      $popup.setAttribute('color-index', '' + this.state.colorIndex);
+    }
+  }
+
+  onThemeColorChange() {
+    if (this.state.colorIndex >= 0 && this.state.colorIndex < this.state.themeColors.length || 0) {
+      this.state.color = new TinyColor(this.state.themeColors[this.state.colorIndex]);
+      this.state.initialColor = this.state.color;
+      this.onInitialColorChange();
+    }
+
+    const $popup = this.shadowRoot?.querySelector('toolcool-color-picker-popup');
+    if ($popup) {
+      $popup.setAttribute('theme-colors', JSON.stringify(this.state.themeColors));
+    }
+  }
+
   hsvChanged(evt: CustomEvent) {
     if (!evt || !evt.detail || !evt.detail.cid) return;
 
@@ -315,6 +378,24 @@ class ColorPicker extends HTMLElement {
     rgba.a = evt.detail.a;
 
     this.state.color = new TinyColor(rgba);
+  }
+
+  colorIndexChanged(evt: CustomEvent) {
+    if (!evt || !evt.detail || !evt.detail.cid) return;
+
+    // handle only current instance
+    if (evt.detail.cid !== this.cid) return;
+
+    this.state.colorIndex = evt.detail.i;
+  }
+
+  themeColorChanged(evt: CustomEvent) {
+    if (!evt || !evt.detail || !evt.detail.cid) return;
+
+    // handle only current instance
+    if (evt.detail.cid !== this.cid) return;
+
+    this.state.themeColors = evt.detail.tc;
   }
 
   /**
@@ -373,6 +454,9 @@ class ColorPicker extends HTMLElement {
 
     this.state.initialColor = parseColor(this.getAttribute('color'));
     this.state.color = parseColor(this.getAttribute('color'));
+    this.state.colorIndex = parseInt(this.getAttribute('color-index') || '-1');
+    this.state.themeColors = JSON.parse(this.getAttribute('theme-colors') || '[]');
+    this.state.color = parseColor(this.getAttribute('color'));
     this.state.popupPosition = this.getAttribute('popup-position') || 'left';
     this.state.buttonWidth = this.getAttribute('button-width');
     this.state.buttonHeight = this.getAttribute('button-height');
@@ -417,6 +501,8 @@ class ColorPicker extends HTMLElement {
     document.addEventListener(CUSTOM_EVENT_COLOR_HSV_CHANGED, this.hsvChanged);
     document.addEventListener(CUSTOM_EVENT_COLOR_HUE_CHANGED, this.hueChanged);
     document.addEventListener(CUSTOM_EVENT_COLOR_ALPHA_CHANGED, this.alphaChanged);
+    document.addEventListener(CUSTOM_EVENT_COLOR_INDEX_CHANGED, this.colorIndexChanged);
+    document.addEventListener(CUSTOM_EVENT_THEME_COLOR_CHANGED, this.themeColorChanged);
     document.addEventListener(CUSTOM_EVENT_BUTTON_CLICKED, this.buttonClicked);
   }
 
@@ -432,6 +518,8 @@ class ColorPicker extends HTMLElement {
     document.removeEventListener(CUSTOM_EVENT_COLOR_HSV_CHANGED, this.hsvChanged);
     document.removeEventListener(CUSTOM_EVENT_COLOR_HUE_CHANGED, this.hueChanged);
     document.removeEventListener(CUSTOM_EVENT_COLOR_ALPHA_CHANGED, this.alphaChanged);
+    document.removeEventListener(CUSTOM_EVENT_COLOR_INDEX_CHANGED, this.colorIndexChanged);
+    document.removeEventListener(CUSTOM_EVENT_THEME_COLOR_CHANGED, this.themeColorChanged);
     document.removeEventListener(CUSTOM_EVENT_BUTTON_CLICKED, this.buttonClicked);
   }
 
@@ -444,6 +532,27 @@ class ColorPicker extends HTMLElement {
         this.state.initialColor = parseColor(this.getAttribute('color'));
         this.state.color = parseColor(this.getAttribute('color'));
         this.onInitialColorChange();
+        break;
+      }
+
+      case 'color-index': {
+        this.state.colorIndex = parseInt(this.getAttribute('color-index') || '-1');
+        if (this.state.colorIndex >= 0 && this.state.colorIndex < this.state.themeColors.length || 0) {
+          this.state.color = new TinyColor(this.state.themeColors[this.state.colorIndex]);
+          this.state.initialColor = this.state.color;
+          this.onInitialColorChange();
+        }
+        break;
+      }
+
+      case 'theme-colors': {
+        const colorThemeStr = this.getAttribute('theme-colors') || '[]';
+        this.state.themeColors = JSON.parse(colorThemeStr);
+        if (this.state.colorIndex >= 0 && this.state.colorIndex < this.state.themeColors.length || 0) {
+          this.state.color = new TinyColor(this.state.themeColors[this.state.colorIndex]);
+          this.state.initialColor = this.state.color;
+          this.onInitialColorChange();
+        }
         break;
       }
 

@@ -1,5 +1,6 @@
 // @ts-ignore: esbuild custom loader
 import styles from './popup.pcss';
+import ThemeColors from '../themecolors/themecolors';
 import Saturation from '../saturation/saturation';
 import Hue from '../hue/hue';
 import Alpha from '../alpha/alpha';
@@ -17,15 +18,21 @@ class ColorPickerPopup extends HTMLElement {
 
   private $popup: HTMLElement | null;
   private color = '#000';
+  private colorIndex = -1;
+  private themeColors = [];
 
   static get observedAttributes() {
-    return ['color', 'popup-position'];
+    return ['color', 'theme-colors', 'color-index', 'popup-position'];
   }
 
   constructor() {
     super();
 
     // register web components
+    if (!customElements.get('toolcool-color-picker-theme-colors')) {
+      customElements.define('toolcool-color-picker-theme-colors', ThemeColors);
+    }
+
     if (!customElements.get('toolcool-color-picker-saturation')) {
       customElements.define('toolcool-color-picker-saturation', Saturation);
     }
@@ -59,17 +66,20 @@ class ColorPickerPopup extends HTMLElement {
    */
   connectedCallback() {
     if (!this.shadowRoot) return;
-
+    const themeColorsStr = this.getAttribute('theme-colors') || '[]';
     this.color = this.getAttribute('color') || '#000';
+    this.themeColors = JSON.parse(themeColorsStr);
+    this.colorIndex = parseInt(this.getAttribute('color-index') || '-1');
     this.popupPosition = this.getAttribute('popup-position') || 'left';
 
     this.shadowRoot.innerHTML = `
            <style>${styles}</style>
-           <div class="popup">
-                <toolcool-color-picker-saturation color="${this.color}" cid="${this.cid}"></toolcool-color-picker-saturation>
-                <toolcool-color-picker-hue color="${this.color}" cid="${this.cid}"></toolcool-color-picker-hue>
-                <toolcool-color-picker-alpha color="${this.color}" cid="${this.cid}"></toolcool-color-picker-alpha>
-                <toolcool-color-picker-fields color="${this.color}" cid="${this.cid}"></toolcool-color-picker-fields>
+           <div class='popup'>
+                <toolcool-color-picker-theme-colors color-index='${this.colorIndex}' theme-colors='${themeColorsStr}' cid='${this.cid}'></toolcool-color-picker-theme-colors>
+                <toolcool-color-picker-saturation color='${this.color}' cid='${this.cid}'></toolcool-color-picker-saturation>
+                <toolcool-color-picker-hue color='${this.color}' cid='${this.cid}'></toolcool-color-picker-hue>
+                <toolcool-color-picker-alpha color='${this.color}' cid='${this.cid}'></toolcool-color-picker-alpha>
+                <toolcool-color-picker-fields color='${this.color}' cid='${this.cid}'></toolcool-color-picker-fields>
            </div>
         `;
 
@@ -94,6 +104,22 @@ class ColorPickerPopup extends HTMLElement {
 
       if (this.$popup) {
         this.$popup.classList.toggle('right', this.popupPosition === 'right');
+      }
+    }
+  
+    if (attrName === 'theme-colors') {
+      this.themeColors = JSON.parse(newVal || '[]');
+      const $themeColor = this.shadowRoot?.querySelector('toolcool-color-picker-theme-colors');
+      if ($themeColor) {
+        $themeColor.setAttribute('theme-colors', newVal);
+      }
+    }
+
+    if (attrName === 'color-index') {
+      this.colorIndex = parseInt(newVal);
+      const $themeColor = this.shadowRoot?.querySelector('toolcool-color-picker-theme-colors');
+      if ($themeColor) {
+        $themeColor.setAttribute('color-index', newVal);
       }
     }
 

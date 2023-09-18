@@ -15,7 +15,7 @@ export default {
   entryPoints: ['./src/index.ts'],
   bundle: true,
   sourcemap: 'external',
-  minify: true,
+  minify: false,
   target: ['es6'],
   outfile: './examples/js/toolcool-color-picker.min.js',
   loader: {
