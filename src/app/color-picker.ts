@@ -312,6 +312,7 @@ class ColorPicker extends HTMLElement {
     console.log('Color event');
     this.dispatchEvent(
       new CustomEvent('change', {
+        bubbles: true, // Allow the event to propagate
         detail: {
           hex: this.hex,
           hex8: this.hex8,
