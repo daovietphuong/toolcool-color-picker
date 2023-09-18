@@ -1,13 +1,15 @@
 // @ts-ignore: esbuild custom loader
 import styles from './styles.pcss';
 import ColorPickerPopup from '../ui/popup/popup';
-import { CUSTOM_EVENT_COLOR_HSV_CHANGED, 
-  CUSTOM_EVENT_COLOR_HUE_CHANGED, 
-  CUSTOM_EVENT_COLOR_ALPHA_CHANGED, 
-  CUSTOM_EVENT_BUTTON_CLICKED, 
+import {
+  CUSTOM_EVENT_COLOR_HSV_CHANGED,
+  CUSTOM_EVENT_COLOR_HUE_CHANGED,
+  CUSTOM_EVENT_COLOR_ALPHA_CHANGED,
+  CUSTOM_EVENT_BUTTON_CLICKED,
   CUSTOM_EVENT_COLOR_INDEX_CHANGED,
   CUSTOM_EVENT_THEME_COLOR_CHANGED,
-  sendButtonClickedCustomEvent } from '../domain/events-provider';
+  sendButtonClickedCustomEvent
+} from '../domain/events-provider';
 import { getUniqueId } from '../domain/common-provider';
 import { hslaToString, hsvaToString, parseColor, rgbaToString } from '../domain/color-provider';
 import { TinyColor } from '@ctrl/tinycolor'; // https://github.com/scttcper/tinycolor
@@ -153,10 +155,11 @@ class ColorPicker extends HTMLElement {
 
   // this id attribute is used for custom events
   public readonly cid: string;
-
   private $button: HTMLElement | null;
   private $buttonColor: HTMLElement | null;
   private $popupBox: HTMLElement | null;
+  private suspendEvt: boolean;
+  private updateValues: boolean;
 
   private stateDefaults: IColorPickerState = {
     isPopupVisible: false,
@@ -175,6 +178,8 @@ class ColorPicker extends HTMLElement {
     super();
 
     this.cid = getUniqueId();
+    this.suspendEvt = true;
+    this.updateValues = false;
 
     // register web components
     if (!customElements.get('toolcool-color-picker-popup')) {
@@ -271,7 +276,9 @@ class ColorPicker extends HTMLElement {
 
     const $popup = this.shadowRoot?.querySelector('toolcool-color-picker-popup');
     if ($popup) {
+      this.updateValues = true;
       $popup.setAttribute('color', bgColor);
+      this.updateValues = false;
     }
   }
 
@@ -296,6 +303,13 @@ class ColorPicker extends HTMLElement {
       this.$buttonColor.style.backgroundColor = rgbaToString(this.state.color);
     }
 
+    if (this.suspendEvt)
+      return;
+    this.fireEvent();
+  }
+
+  fireEvent() {
+    console.log('Color event');
     this.dispatchEvent(
       new CustomEvent('change', {
         detail: {
@@ -308,34 +322,52 @@ class ColorPicker extends HTMLElement {
           hsv: this.hsv,
           hsva: this.hsva,
           color: this.color,
+          colorIndex: this.colorIndex,
+          themeColors: this.themeColors
         },
       })
     );
   }
 
   onColorIndexChange() {
+    const suspendEvt = this.suspendEvt;
+    this.suspendEvt = true;
     if (this.state.colorIndex >= 0 && this.state.colorIndex < this.state.themeColors.length || 0) {
-      this.state.color = new TinyColor(this.state.themeColors[this.state.colorIndex]);
+      const rgba = new TinyColor(this.state.themeColors[this.state.colorIndex]).toRgb();
+      rgba.a = this.state.color.a;
+      this.state.color = new TinyColor(rgba);
       this.state.initialColor = this.state.color;
-      this.onInitialColorChange();
     }
     const $popup = this.shadowRoot?.querySelector('toolcool-color-picker-popup');
     if ($popup) {
+      this.updateValues = true;
       $popup.setAttribute('color-index', '' + this.state.colorIndex);
+      this.updateValues = false;
     }
+    this.suspendEvt = suspendEvt;
+    if (!suspendEvt)
+      this.fireEvent();
   }
 
   onThemeColorChange() {
+    const suspendEvt = this.suspendEvt;
+    this.suspendEvt = true;
     if (this.state.colorIndex >= 0 && this.state.colorIndex < this.state.themeColors.length || 0) {
-      this.state.color = new TinyColor(this.state.themeColors[this.state.colorIndex]);
+      const rgba = new TinyColor(this.state.themeColors[this.state.colorIndex]).toRgb();
+      rgba.a = this.state.color.a;
+      this.state.color = new TinyColor(rgba);
       this.state.initialColor = this.state.color;
-      this.onInitialColorChange();
     }
 
     const $popup = this.shadowRoot?.querySelector('toolcool-color-picker-popup');
     if ($popup) {
+      this.updateValues = true;
       $popup.setAttribute('theme-colors', JSON.stringify(this.state.themeColors));
+      this.updateValues = false;
     }
+    this.suspendEvt = suspendEvt;
+    if (!suspendEvt)
+      this.fireEvent();
   }
 
   hsvChanged(evt: CustomEvent) {
@@ -343,13 +375,20 @@ class ColorPicker extends HTMLElement {
 
     // handle only current instance
     if (evt.detail.cid !== this.cid) return;
-
+    if (this.updateValues) return;
+  
+    const suspendEvt = this.suspendEvt;
+    this.suspendEvt = true;
     this.state.color = new TinyColor({
       h: evt.detail.h,
       s: evt.detail.s,
       v: evt.detail.v,
       a: this.state.color.toHsv().a,
     });
+    this.state.colorIndex = -1;
+    this.suspendEvt = suspendEvt;
+    if (!suspendEvt)
+      this.fireEvent();
   }
 
   hueChanged(evt: CustomEvent) {
@@ -357,15 +396,21 @@ class ColorPicker extends HTMLElement {
 
     // handle only current instance
     if (evt.detail.cid !== this.cid) return;
-
+    if (this.updateValues) return;
+   
+    const suspendEvt = this.suspendEvt;
+    this.suspendEvt = true;
     const hsv = this.state.color.toHsv();
-
     this.state.color = new TinyColor({
       h: evt.detail.h,
       s: hsv.s,
       v: hsv.v,
       a: hsv.a,
     });
+    this.state.colorIndex = -1;
+    this.suspendEvt = suspendEvt;
+    if (!suspendEvt)
+      this.fireEvent();
   }
 
   alphaChanged(evt: CustomEvent) {
@@ -373,11 +418,17 @@ class ColorPicker extends HTMLElement {
 
     // handle only current instance
     if (evt.detail.cid !== this.cid) return;
+    if (this.updateValues) return;
 
     const rgba = this.state.color.toRgb();
     rgba.a = evt.detail.a;
 
+    const suspendEvt = this.suspendEvt;
+    this.suspendEvt = true;
     this.state.color = new TinyColor(rgba);
+    this.suspendEvt = suspendEvt;
+    if (!suspendEvt)
+      this.fireEvent();
   }
 
   colorIndexChanged(evt: CustomEvent) {
@@ -385,8 +436,22 @@ class ColorPicker extends HTMLElement {
 
     // handle only current instance
     if (evt.detail.cid !== this.cid) return;
+    if (this.updateValues) return;
 
+    const suspendEvt = this.suspendEvt;
+    this.suspendEvt = true;
     this.state.colorIndex = evt.detail.i;
+
+    if (this.state.colorIndex >= 0 && this.state.colorIndex < this.state.themeColors.length || 0) {
+      const rgba = new TinyColor(this.state.themeColors[this.state.colorIndex]).toRgb();
+      rgba.a = this.state.color.a;
+      this.state.color = new TinyColor(rgba);
+    } else {
+      this.state.color = new TinyColor();
+    }
+    this.suspendEvt = suspendEvt;
+    if (!suspendEvt)
+      this.fireEvent();
   }
 
   themeColorChanged(evt: CustomEvent) {
@@ -394,8 +459,21 @@ class ColorPicker extends HTMLElement {
 
     // handle only current instance
     if (evt.detail.cid !== this.cid) return;
+    if (this.updateValues) return;
 
+    const suspendEvt = this.suspendEvt;
+    this.suspendEvt = true;
     this.state.themeColors = evt.detail.tc;
+    if (this.state.colorIndex >= 0 && this.state.colorIndex < this.state.themeColors.length || 0) {
+      const rgba = new TinyColor(this.state.themeColors[this.state.colorIndex]).toRgb();
+      rgba.a = this.state.color.a;
+      this.state.color = new TinyColor(rgba);
+    } else {
+      this.state.color = new TinyColor();
+    }
+    this.suspendEvt = suspendEvt;
+    if (!suspendEvt)
+      this.fireEvent();
   }
 
   /**
@@ -504,12 +582,16 @@ class ColorPicker extends HTMLElement {
     document.addEventListener(CUSTOM_EVENT_COLOR_INDEX_CHANGED, this.colorIndexChanged);
     document.addEventListener(CUSTOM_EVENT_THEME_COLOR_CHANGED, this.themeColorChanged);
     document.addEventListener(CUSTOM_EVENT_BUTTON_CLICKED, this.buttonClicked);
+
+    this.suspendEvt = false;
   }
 
   /**
    * when the custom element disconnected from DOM
    */
   disconnectedCallback() {
+    this.suspendEvt = true;
+
     this.$button?.removeEventListener('click', this.toggle);
     this.$button?.removeEventListener('keydown', this.onKeyDown);
     this.$button?.removeEventListener('mousedown', this.stopPropagation);
@@ -537,22 +619,12 @@ class ColorPicker extends HTMLElement {
 
       case 'color-index': {
         this.state.colorIndex = parseInt(this.getAttribute('color-index') || '-1');
-        if (this.state.colorIndex >= 0 && this.state.colorIndex < this.state.themeColors.length || 0) {
-          this.state.color = new TinyColor(this.state.themeColors[this.state.colorIndex]);
-          this.state.initialColor = this.state.color;
-          this.onInitialColorChange();
-        }
         break;
       }
 
       case 'theme-colors': {
         const colorThemeStr = this.getAttribute('theme-colors') || '[]';
         this.state.themeColors = JSON.parse(colorThemeStr);
-        if (this.state.colorIndex >= 0 && this.state.colorIndex < this.state.themeColors.length || 0) {
-          this.state.color = new TinyColor(this.state.themeColors[this.state.colorIndex]);
-          this.state.initialColor = this.state.color;
-          this.onInitialColorChange();
-        }
         break;
       }
 
