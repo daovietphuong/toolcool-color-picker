@@ -299,7 +299,6 @@ class ColorPicker extends HTMLElement {
   }
 
   fireEvent() {
-    console.log('Color event');
     this.dispatchEvent(
       new CustomEvent('change', {
         bubbles: true, // Allow the event to propagate
