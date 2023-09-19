@@ -113,8 +113,8 @@ class Alpha extends HTMLElement {
     // handle only current instance
     if (evt.detail.cid !== this.cid) return;
 
-    this.saturation = evt.detail.h;
-    this.hue = evt.detail.s;
+    this.saturation = evt.detail.s;
+    this.hue = evt.detail.h;
     this.value = evt.detail.v;
 
     this.render(false);
