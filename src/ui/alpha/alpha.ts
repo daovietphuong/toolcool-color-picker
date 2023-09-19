@@ -43,7 +43,7 @@ class Alpha extends HTMLElement {
     this.alphaChanged = this.alphaChanged.bind(this);
   }
 
-  render(sendEvent = true) {
+  render(sendEvent: boolean) {
     if (this.$pointer) {
       this.$pointer.style.left = `${this.alpha * 100}%`;
     }
@@ -82,7 +82,7 @@ class Alpha extends HTMLElement {
     const percent = Math.min(Math.max(0, (left * 100) / boxWidth), 100);
 
     this.alpha = percent / 100;
-    this.render();
+    this.render(true);
   }
 
   onKeyDown(evt: KeyboardEvent) {
@@ -93,7 +93,7 @@ class Alpha extends HTMLElement {
         let percent = this.alpha * 100;
         percent = Math.max(0, percent - 1);
         this.alpha = percent / 100;
-        this.render();
+        this.render(true);
         break;
       }
 
@@ -101,7 +101,7 @@ class Alpha extends HTMLElement {
         let percent = this.alpha * 100;
         percent = Math.min(100, percent + 1);
         this.alpha = percent / 100;
-        this.render();
+        this.render(true);
         break;
       }
     }
@@ -139,7 +139,7 @@ class Alpha extends HTMLElement {
 
     if (this.alpha !== evt.detail.a) {
       this.alpha = evt.detail.a;
-      this.render();
+      this.render(true);
     }
   }
 
@@ -237,7 +237,7 @@ class Alpha extends HTMLElement {
     this.saturation = hsv.s;
     this.value = hsv.v;
 
-    this.render();
+    this.render(false);
   }
 }
 

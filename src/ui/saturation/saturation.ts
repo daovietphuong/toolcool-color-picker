@@ -40,7 +40,7 @@ class Saturation extends HTMLElement {
     this.hueChanged = this.hueChanged.bind(this);
   }
 
-  render(sendEvent = true) {
+  render(sendEvent: boolean) {
     // re-render
     if (this.$pointer) {
       this.$pointer.style.left = getLeftBySaturation(this.saturation);
@@ -75,33 +75,33 @@ class Saturation extends HTMLElement {
     this.saturation = lPos / boxWidth;
     this.value = 1 - tPos / boxHeight;
 
-    this.render();
+    this.render(true);
   }
 
   onPointerKeyDown(evt: KeyboardEvent) {
     switch (evt.key) {
       case 'ArrowLeft': {
         this.saturation = Math.max(0, this.saturation - SATURATION_STEP);
-        this.render();
+        this.render(true);
         break;
       }
 
       case 'ArrowRight': {
         this.saturation = Math.min(1, this.saturation + SATURATION_STEP);
-        this.render();
+        this.render(true);
         break;
       }
 
       case 'ArrowUp': {
         this.value = Math.min(1, this.value + SATURATION_STEP);
-        this.render();
+        this.render(true);
         break;
       }
 
       case 'ArrowDown': {
         evt.preventDefault();
         this.value = Math.max(0, this.value - SATURATION_STEP);
-        this.render();
+        this.render(true);
         break;
       }
     }
@@ -163,7 +163,7 @@ class Saturation extends HTMLElement {
 
     this.hue = evt.detail.h;
 
-    this.render();
+    this.render(false);
   }
 
   /**

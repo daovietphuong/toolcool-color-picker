@@ -58,7 +58,7 @@ export const sendHueCustomEvent = (cid: string, h: number) => {
   );
 };
 
-export const sendColorIndexCustomEvent = (cid: string, i: string) => {
+export const sendColorIndexCustomEvent = (cid: string, i: number) => {
   if (!cid) return;
 
   document.dispatchEvent(

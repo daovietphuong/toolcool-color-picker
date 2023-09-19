@@ -36,14 +36,15 @@ class Hue extends HTMLElement {
     this.hsvChanged = this.hsvChanged.bind(this);
   }
 
-  render() {
+  render(sendEvent: boolean) {
     if (this.$pointer) {
       this.$pointer.style.left = `${getLeftByHue(this.hue)}%`;
     }
 
     // update outer color to change the button, and
     // send the updated color to the user
-    sendHueCustomEvent(this.cid, this.hue);
+    if (sendEvent)
+      sendHueCustomEvent(this.cid, this.hue);
   }
 
   hsvChanged(evt: CustomEvent) {
@@ -54,7 +55,7 @@ class Hue extends HTMLElement {
 
     if (this.hue !== evt.detail.h) {
       this.hue = evt.detail.h;
-      this.render();
+      this.render(false);
     }
   }
 
@@ -76,7 +77,7 @@ class Hue extends HTMLElement {
     const percent = Math.min(Math.max(0, Math.round((left * 100) / boxWidth)), 100);
 
     this.hue = getHueByLeft(percent);
-    this.render();
+    this.render(true);
   }
 
   onKeyDown(evt: KeyboardEvent) {
@@ -87,7 +88,7 @@ class Hue extends HTMLElement {
         let percent = getLeftByHue(this.hue);
         percent = Math.max(0, percent - 1);
         this.hue = getHueByLeft(percent);
-        this.render();
+        this.render(true);
         break;
       }
 
@@ -95,7 +96,7 @@ class Hue extends HTMLElement {
         let percent = getLeftByHue(this.hue);
         percent = Math.min(100, percent + 1);
         this.hue = getHueByLeft(percent);
-        this.render();
+        this.render(true);
         break;
       }
     }
@@ -182,7 +183,7 @@ class Hue extends HTMLElement {
     const hsv = color.toHsv();
 
     this.hue = hsv.h;
-    this.render();
+    this.render(false);
   }
 }
 
